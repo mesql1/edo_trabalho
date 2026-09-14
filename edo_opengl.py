@@ -4,22 +4,20 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QLabel, QLineEdit, QPushButton, QFrame, 
                              QTabWidget, QSpacerItem, QSizePolicy)
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QFont
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 
 # ==========================================
-# DESIGN SYSTEM: VERCEL / LINEAR AESTHETIC
+# DESIGN SYSTEM: LINEAR / VERCEL AESTHETIC
 # ==========================================
-# Paleta Zinc (Tailwind-inspired)
 ZINC_950 = "#09090b"  # Fundo principal
 ZINC_900 = "#18181b"  # Painéis secundários
-ZINC_800 = "#27272a"  # Bordas e divisores
+ZINC_800 = "#27272a"  # Divisores
+ZINC_700 = "#3f3f46"  # Bordas de ênfase (blockquotes)
 ZINC_400 = "#a1a1aa"  # Texto secundário
-ZINC_50  = "#fafafa"  # Texto primário e botões primários
+ZINC_50  = "#fafafa"  # Texto primário
 BLUE_500 = "#3b82f6"  # Accent functional
 
-# Configuração global do PyQtGraph para casar com a UI
 pg.setConfigOption('background', ZINC_950)
 pg.setConfigOption('foreground', ZINC_400)
 pg.setConfigOptions(antialias=True)
@@ -27,10 +25,10 @@ pg.setConfigOptions(antialias=True)
 class SimuladorRC(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("RC Circuit ODE Simulator")
+        self.setWindowTitle("Simulador de EDO: Circuito RC")
         self.resize(1280, 800)
         
-        # Aplicando stylesheet raiz
+        # Stylesheet tipográfico e estrutural
         self.setStyleSheet(f"""
             QMainWindow {{ background-color: {ZINC_950}; }}
             QLabel {{ color: {ZINC_400}; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }}
@@ -40,7 +38,7 @@ class SimuladorRC(QMainWindow):
             QLineEdit {{ 
                 background-color: {ZINC_950}; border: 1px solid {ZINC_800}; 
                 border-radius: 6px; color: {ZINC_50}; padding: 6px 12px; 
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 13px;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px;
             }}
             QLineEdit:focus {{ border: 1px solid {ZINC_400}; }}
             
@@ -60,9 +58,17 @@ class SimuladorRC(QMainWindow):
             QTabBar::tab {{ background: transparent; color: {ZINC_400}; padding: 10px 16px; border: none; border-bottom: 2px solid transparent; font-weight: 500; font-size: 13px; }}
             QTabBar::tab:selected {{ color: {ZINC_50}; border-bottom: 2px solid {ZINC_50}; }}
             QTabBar::tab:hover:!selected {{ color: #d4d4d8; }}
+            
+            /* Estilo da nota analítica (Blockquote) */
+            QLabel#note {{
+                border-left: 2px solid {ZINC_700};
+                padding-left: 12px;
+                color: {ZINC_400};
+                font-size: 12px;
+                margin-top: 8px;
+            }}
         """)
 
-        # Dados da simulação
         self.t_vals = np.array([])
         self.q_vals = np.array([])
         self.i_vals = np.array([])
@@ -86,33 +92,32 @@ class SimuladorRC(QMainWindow):
         # ==========================================
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(260)
+        sidebar.setFixedWidth(280)
         layout_sidebar = QVBoxLayout(sidebar)
         layout_sidebar.setContentsMargins(20, 24, 20, 24)
         layout_sidebar.setSpacing(12)
         
-        lbl_title = QLabel("RC Circuit Simulator")
+        lbl_title = QLabel("Simulador de Circuito RC")
         lbl_title.setObjectName("h1")
         layout_sidebar.addWidget(lbl_title)
         
-        lbl_params = QLabel("Parameters")
+        lbl_params = QLabel("Parâmetros")
         lbl_params.setObjectName("h2")
         layout_sidebar.addWidget(lbl_params)
         
-        # Inputs (Densidade alta, textos diretos)
-        layout_sidebar.addWidget(QLabel("Resistance (Ω)"))
+        layout_sidebar.addWidget(QLabel("Resistência (Ω)"))
         self.input_r = QLineEdit("5.0")
         layout_sidebar.addWidget(self.input_r)
         
-        layout_sidebar.addWidget(QLabel("Capacitance (F)"))
+        layout_sidebar.addWidget(QLabel("Capacitância (F)"))
         self.input_c = QLineEdit("0.1")
         layout_sidebar.addWidget(self.input_c)
         
-        layout_sidebar.addWidget(QLabel("Initial Charge (C)"))
+        layout_sidebar.addWidget(QLabel("Carga Inicial (C)"))
         self.input_q0 = QLineEdit("5.0")
         layout_sidebar.addWidget(self.input_q0)
         
-        btn_apply = QPushButton("Apply parameters")
+        btn_apply = QPushButton("Aplicar parâmetros")
         btn_apply.setObjectName("primary")
         btn_apply.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_apply.clicked.connect(self.calcular_modelo)
@@ -120,32 +125,40 @@ class SimuladorRC(QMainWindow):
         
         layout_sidebar.addSpacing(16)
         
-        lbl_controls = QLabel("Simulation")
+        lbl_controls = QLabel("Simulação")
         lbl_controls.setObjectName("h2")
         layout_sidebar.addWidget(lbl_controls)
         
-        # Controles operacionais
-        btn_run = QPushButton("Run")
+        btn_run = QPushButton("Executar")
         btn_run.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_run.clicked.connect(self.play)
         layout_sidebar.addWidget(btn_run)
         
-        btn_pause = QPushButton("Pause")
+        btn_pause = QPushButton("Pausar")
         btn_pause.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_pause.clicked.connect(self.pause)
         layout_sidebar.addWidget(btn_pause)
         
-        btn_reset = QPushButton("Reset")
+        btn_reset = QPushButton("Resetar")
         btn_reset.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_reset.clicked.connect(self.reset)
         layout_sidebar.addWidget(btn_reset)
         
         layout_sidebar.addItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         
-        # Meta info no rodapé da sidebar
-        lbl_meta = QLabel("v1.2.0-rc\nODE: q' + (1/RC)q = 0")
-        lbl_meta.setStyleSheet(f"color: {ZINC_800}; font-size: 11px;")
-        layout_sidebar.addWidget(lbl_meta)
+        # Explicação Física / Meta Info no rodapé da Sidebar
+        lbl_model = QLabel("Dinâmica do Modelo")
+        lbl_model.setObjectName("h2")
+        layout_sidebar.addWidget(lbl_model)
+        
+        desc_model = QLabel("A resposta natural do circuito é regida por uma EDO linear de 1ª ordem. A energia inicial armazenada no capacitor dissipa-se no resistor, sem fontes externas.")
+        desc_model.setWordWrap(True)
+        desc_model.setStyleSheet(f"color: {ZINC_400}; font-size: 12px; margin-bottom: 8px;")
+        layout_sidebar.addWidget(desc_model)
+
+        lbl_eq = QLabel("EDO: q'(t) + (1/RC)q(t) = 0")
+        lbl_eq.setStyleSheet(f"color: {ZINC_400}; font-family: monospace; font-size: 11px;")
+        layout_sidebar.addWidget(lbl_eq)
         
         layout_principal.addWidget(sidebar)
 
@@ -158,13 +171,14 @@ class SimuladorRC(QMainWindow):
         
         self.tabs = QTabWidget()
         
-        # --- TAB 1: 2D Analytics ---
+        # --- TAB 1: Analytics 2D ---
         aba_2d = QWidget()
-        layout_2d = QHBoxLayout(aba_2d)
-        layout_2d.setContentsMargins(0, 16, 0, 0)
-        layout_2d.setSpacing(16)
+        layout_2d_main = QVBoxLayout(aba_2d)
+        layout_2d_main.setContentsMargins(0, 16, 0, 0)
         
-        # Helper de estilo para os gráficos
+        layout_2d_charts = QHBoxLayout()
+        layout_2d_charts.setSpacing(16)
+        
         def format_plot(plot, title):
             plot.setTitle(title, color=ZINC_50, size='13px')
             plot.showGrid(x=True, y=True, alpha=0.15)
@@ -173,34 +187,38 @@ class SimuladorRC(QMainWindow):
             plot.getAxis('bottom').setTextPen(ZINC_400)
             plot.getAxis('left').setTextPen(ZINC_400)
 
-        # Gráfico 1: Time Series
         self.plot_tempo = pg.PlotWidget()
-        format_plot(self.plot_tempo, "Time Series (q, i × t)")
-        
+        format_plot(self.plot_tempo, "Série Temporal (q, i × t)")
         self.linha_q = self.plot_tempo.plot(pen=pg.mkPen(color=ZINC_50, width=1.5), name="Charge")
         self.linha_i = self.plot_tempo.plot(pen=pg.mkPen(color=ZINC_400, width=1.5, style=Qt.PenStyle.DashLine), name="Current")
         self.ponto_tempo = self.plot_tempo.plot(pen=None, symbol='o', symbolBrush=ZINC_50, symbolSize=6)
-        layout_2d.addWidget(self.plot_tempo)
+        layout_2d_charts.addWidget(self.plot_tempo)
 
-        # Gráfico 2: Phase Portrait
         self.plot_fase = pg.PlotWidget()
-        format_plot(self.plot_fase, "Phase Portrait (q × i)")
+        format_plot(self.plot_fase, "Retrato de Fase (q × i)")
         self.linha_fase = self.plot_fase.plot(pen=pg.mkPen(color=BLUE_500, width=1.5))
         self.ponto_fase = self.plot_fase.plot(pen=None, symbol='o', symbolBrush=BLUE_500, symbolSize=6)
-        layout_2d.addWidget(self.plot_fase)
+        layout_2d_charts.addWidget(self.plot_fase)
         
-        self.tabs.addTab(aba_2d, "Analytics")
+        layout_2d_main.addLayout(layout_2d_charts, stretch=1)
+        
+        # Insight Analítico (Blockquote UI)
+        note_2d = QLabel("Análise 2D: A série temporal exibe decaimento exponencial com pico negativo de corrente. O retrato de fase estritamente linear valida a natureza homogênea do sistema de 1ª ordem.")
+        note_2d.setObjectName("note")
+        note_2d.setWordWrap(True)
+        layout_2d_main.addWidget(note_2d)
 
-        # --- TAB 2: 3D State Space ---
+        self.tabs.addTab(aba_2d, "Visão Analítica")
+
+        # --- TAB 2: State Space 3D ---
         aba_3d = QWidget()
-        layout_3d = QVBoxLayout(aba_3d)
-        layout_3d.setContentsMargins(0, 16, 0, 0)
+        layout_3d_main = QVBoxLayout(aba_3d)
+        layout_3d_main.setContentsMargins(0, 16, 0, 0)
         
         self.view_3d = gl.GLViewWidget()
         self.view_3d.opts['distance'] = 18
         self.view_3d.setBackgroundColor(ZINC_950)
         
-        # Eixos discretos, sem cores saturadas
         eixos = gl.GLAxisItem()
         eixos.setSize(x=6, y=6, z=6)
         self.view_3d.addItem(eixos)
@@ -208,15 +226,21 @@ class SimuladorRC(QMainWindow):
         grade_chao = gl.GLGridItem(color=(255, 255, 255, 30))
         self.view_3d.addItem(grade_chao)
         
-        # Trajetória num azul sólido, sem neon
         self.linha_3d = gl.GLLinePlotItem(color=pg.glColor(BLUE_500), width=1.5, antialias=True)
         self.view_3d.addItem(self.linha_3d)
         
         self.ponto_3d = gl.GLScatterPlotItem(color=pg.glColor(ZINC_50), size=6)
         self.view_3d.addItem(self.ponto_3d)
         
-        layout_3d.addWidget(self.view_3d)
-        self.tabs.addTab(aba_3d, "3D State Space")
+        layout_3d_main.addWidget(self.view_3d, stretch=1)
+        
+        # Insight Analítico (Blockquote UI)
+        note_3d = QLabel("Análise 3D: A trajetória tridimensional evidencia o esgotamento energético. À medida que o tempo (eixo Z) avança, o vetor de estado converge para a origem (X=0, Y=0).")
+        note_3d.setObjectName("note")
+        note_3d.setWordWrap(True)
+        layout_3d_main.addWidget(note_3d)
+
+        self.tabs.addTab(aba_3d, "Espaço de Estados 3D")
         
         layout_canvas.addWidget(self.tabs)
         layout_principal.addWidget(canvas_area, stretch=1)
@@ -224,7 +248,7 @@ class SimuladorRC(QMainWindow):
         self.setCentralWidget(widget_central)
 
     # ==========================================
-    # CORE LÓGICA E RENDER (Mantidos Intactos)
+    # CORE LÓGICA E RENDER
     # ==========================================
     def calcular_modelo(self):
         try:
